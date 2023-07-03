@@ -2,6 +2,6 @@
 import app from './server.js'
 
 // Ejecutar el servidor por medio del puerto 3000
-app.listen(3000,()=>{
-    console.log(`Server on port ${3000}`);
+app.listen(app.get('port'),()=>{
+    console.log(`Server ok on http://localhost:${app.get('port')}`);
 })
