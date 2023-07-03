@@ -1,8 +1,31 @@
 import Veterinario from "../models/Veterinario.js"
 import sendMailToUser from "../config/nodemailer.js"
 
-const login =(req,res)=>{
-    res.status(200).json({res:'login del veterinario'})
+const login = async(req,res)=>{
+    // Capturar los datos del request
+    const {email,password} = req.body
+    // Validación de campos vacíos
+    if (Object.values(req.body).includes("")) return res.status(404).json({msg:"Lo sentimos, debes llenar todos los campos"})
+    // Obtener el usuario en base al email
+    const veterinarioBDD = await Veterinario.findOne({email}).select("-status -__v -token -updatedAt -createdAt")
+    // Validación de la cuenta de email
+    if(veterinarioBDD?.confirmEmail===false) return res.status(403).json({msg:"Lo sentimos, debe verificar su cuenta"})
+    // Validar si existe el usuario
+    if(!veterinarioBDD) return res.status(404).json({msg:"Lo sentimos, el usuario no se encuentra registrado"})
+    // Validar si el password del request es el mismo de la BDD
+    const verificarPassword = await veterinarioBDD.matchPassword(password)
+    if(!verificarPassword) return res.status(404).json({msg:"Lo sentimos, el password no es el correcto"})
+    // Desestructurar la info del usuario
+    const {nombre,apellido,direccion,telefono,_id} = veterinarioBDD
+    // Presentar datos
+    res.status(200).json({
+        nombre,
+        apellido,
+        direccion,
+        telefono,
+        _id,
+        email:veterinarioBDD.email
+    })
 }
 const perfil=(req,res)=>{
     res.status(200).json({res:'perfil del veterinario'})
@@ -28,8 +51,21 @@ const registro = async (req,res)=>{
     // Enviar respuesta
     res.status(200).json({msg:"Revisa tu correo electrónico para confirmar tu cuenta"})
 }
-const confirmEmail = (req,res)=>{
-    res.status(200).json({res:'confirmar email de registro de veterinario'})
+const confirmEmail = async (req,res)=>{
+    // Validar el token del correo
+    if(!(req.params.token)) return res.status(400).json({msg:"Lo sentimos, no se puede validar la cuenta"})
+    // Verificar si en base al token existe ese usuario
+    const veterinarioBDD = await Veterinario.findOne({token:req.params.token})
+    // Validar si el token ya fue seteado a null
+    if(!veterinarioBDD?.token) return res.status(404).json({msg:"La cuenta ya ha sido confirmada"})
+    // Setear a null el token y cambiar a true la confirmación de la cuenta
+    veterinarioBDD.token = null
+    // Cambiar a true la configuración de la cuenta
+    veterinarioBDD.confirmEmail=true
+    // Guardar cambios en BDD
+    await veterinarioBDD.save()
+    // Presentar mensajes al usuario
+    res.status(200).json({msg:"Token confirmado, ya puedes iniciar sesión"}) 
 }
 const listarVeterinarios = (req,res)=>{
     res.status(200).json({res:'lista de veterinarios registrados'})
